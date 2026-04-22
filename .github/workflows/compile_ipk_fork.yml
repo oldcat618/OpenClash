@@ -1,0 +1,65 @@
+# Fork 用：推 master 或手动触发即编译 IPK，产物在 Actions Artifacts
+name: Build IPK (fork)
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install curl git tar xz-utils zstd python3 python3-pyelftools python3-setuptools jq unzip
+
+      - name: Download SDK
+        run: |
+          mkdir -p tmp
+          SDK_URL="https://mirrors.pku.edu.cn/openwrt/releases/22.03.0/targets/x86/64/openwrt-sdk-22.03.0-x86-64_gcc-11.2.0_musl.Linux-x86_64.tar.xz"
+          if ! curl -SLk --connect-timeout 30 --retry 2 "$SDK_URL" -o ./tmp/SDK.tar.xz; then
+            SDK_URL="https://downloads.openwrt.org/releases/22.03.0/targets/x86/64/openwrt-sdk-22.03.0-x86-64_gcc-11.2.0_musl.Linux-x86_64.tar.xz"
+            curl -SLk --connect-timeout 30 --retry 2 "$SDK_URL" -o ./tmp/SDK.tar.xz
+          fi
+          cd tmp && tar xf SDK.tar.xz && mv openwrt-sdk-* SDK
+
+      - name: Copy source
+        run: |
+          mkdir -p tmp/SDK/package/luci-app-openclash
+          cp -rf ./luci-app-openclash/. tmp/SDK/package/luci-app-openclash/
+
+      - name: Update third-party resources
+        run: |
+          D=tmp/SDK/package/luci-app-openclash
+          mkdir -p tmp
+          curl -sSL https://ispip.clang.cn/all_cn.txt -o tmp/china_ip_route.ipset
+          mkdir -p $D/root/etc/openclash && cp tmp/china_ip_route.ipset $D/root/etc/openclash/china_ip_route.ipset
+          curl -sSL https://ispip.clang.cn/all_cn_ipv6.txt -o tmp/china_ip6_route.ipset
+          cp tmp/china_ip6_route.ipset $D/root/etc/openclash/china_ip6_route.ipset
+          RULES_RELEASE=$(curl -s https://api.github.com/repos/Loyalsoldier/v2ray-rules-dat/releases/latest | jq -r '.tag_name')
+          curl -sSL "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${RULES_RELEASE}/geosite.dat" -o $D/root/etc/openclash/GeoSite.dat
+          curl -sSL "https://github.com/alecthw/mmdb_china_ip_list/releases/latest/download/Country-lite.mmdb" -o $D/root/etc/openclash/Country.mmdb
+
+      - name: Compile po2lmo
+        run: |
+          cd tmp/SDK/package/luci-app-openclash/tools/po2lmo
+          make && sudo make install
+
+      - name: Compile OpenClash
+        run: |
+          cd tmp/SDK
+          make defconfig
+          make package/luci-app-openclash/compile V=99
+
+      - name: Upload IPK
+        uses: actions/upload-artifact@v4
+        with:
+          name: openclash-ipk
+          path: tmp/SDK/bin/packages/x86_64/base/luci-app-openclash_*.ipk
