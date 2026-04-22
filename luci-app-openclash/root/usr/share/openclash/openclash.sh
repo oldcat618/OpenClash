@@ -5,6 +5,7 @@
 . /usr/share/openclash/log.sh
 . /lib/functions/procd.sh
 . /usr/share/openclash/openclash_curl.sh
+. /usr/share/openclash/openclash_sub_decrypt.sh
 . /usr/share/openclash/uci.sh
 
 set_lock() {
@@ -215,6 +216,7 @@ config_download_direct()
       config_download
 
       if [ "$DOWNLOAD_RESULT" -eq 0 ] && [ -s "$CFG_FILE" ]; then
+	      sub_decrypt
          #prevent ruby unexpected error
          sed -i -E 's/protocol-param: ([^,'"'"'"''}( *#)\n\r]+)/protocol-param: "\1"/g' "$CFG_FILE" 2>/dev/null
          sed -i '/^ \{0,\}enhanced-mode:/d' "$CFG_FILE" >/dev/null 2>&1
@@ -335,6 +337,9 @@ sub_info_get()
    config_get "custom_template_url" "$section" "custom_template_url" ""
    config_get "de_ex_keyword" "$section" "de_ex_keyword" ""
    config_get "sub_ua" "$section" "sub_ua" "clash.meta"
+   config_get "subscribe_decrypt_key" "$section" "subscribe_decrypt_key" ""
+
+
 
    CONFIG_FILE="/etc/openclash/config/$name.yaml"
    CFG_FILE="/tmp/$name.yaml"
@@ -415,6 +420,7 @@ sub_info_get()
 
    config_download
    if [ "$DOWNLOAD_RESULT" -eq 0 ] && [ -s "$CFG_FILE" ]; then
+      sub_decrypt
       #prevent ruby unexpected error
       sed -i -E 's/protocol-param: ([^,'"'"'"''}( *#)\n\r]+)/protocol-param: "\1"/g' "$CFG_FILE" 2>/dev/null
       config_test
