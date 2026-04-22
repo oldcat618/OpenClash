@@ -66,6 +66,13 @@ o:value("Clash")
 o.default = "clash.meta"
 o.rmempty = true
 
+---- Subscription decryption password (plaintext login password)
+o = s:option(Value, "subscribe_decrypt_key", translate("Subscription Decryption Password (Login Password)"))
+o.description = translate("When your panel returns AES-128-CBC encrypted subscription (e.g. sspanel-customized), fill in your panel login password (plaintext). Key is derived as MD5(password), same as v2rayN. Leave empty if not encrypted.")
+o.placeholder = translate("Login password (plaintext)")
+o.password = true
+o.rmempty = true
+
 ---- subconverter
 o = s:option(Flag, "sub_convert", translate("Subscribe Convert Online"))
 o.description = translate("Convert Subscribe Online With Template")
